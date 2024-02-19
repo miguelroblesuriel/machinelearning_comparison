@@ -10,6 +10,21 @@ import pymzml
 from pyteomics import mzxml, mzml
 
 import logging
+
+from matchms import calculate_scores
+from matchms.similarity import CosineGreedy
+from matchms import Spectrum
+
+from matplotlib import pyplot as plt
+
+from pyopenms import *
+
+from massql import msql_fileloading
+
+def cosine_greedy(tolerance, spectrums1, spectrums2):
+    similarity_measure = CosineGreedy(tolerance=tolerance)
+    scores = calculate_scores(spectrums1, spectrums2, similarity_measure, is_symmetric=True)
+    return scores
 def _determine_scan_polarity_pyteomics_mzML(spec):
     """
     Gets an enum for positive and negative polarity, for pyteomics
@@ -29,16 +44,20 @@ def _determine_scan_polarity_pyteomics_mzML(spec):
 
     return polarity
 
-
-def createSpectrum(spectrum_i,spectrum_mz,scan):
-    spectrum={
-        'i': spectrum_i,
-        'mz': spectrum_mz,
-        'scan': scan
-    }
+def createSpectrum(spectrum_i,spectrum_mz):
+    spectrum=Spectrum(mz=spectrum_mz,
+                       intensities=spectrum_i,
+                       metadata= None,
+                       metadata_harmonization= None)
     return spectrum
 
+def maxMs2i(scan, ms2_df):
+    maxMs2i = ms2_df.loc[ms2_df['scan']==scan]['i'].max
+    return maxMs2i
+
+
 input_filename = "049_Blk_Water_NEG.mzMl"
+"""
 previous_ms1_scan = 0
 
 # MS1
@@ -159,23 +178,113 @@ if len(all_msn_mz) > 0:
 
 all_i_filtered = []
 for i in range(len(all_i_norm)):
-    if all_i_norm[i]>=0.2:
+    if all_i_norm[i] >= 0.2:
         all_i_filtered.append(i)
 
-spectrum_i=[]
-spectrum_mz=[]
+spectrum_i = []
+spectrum_mz = []
+actual_scan = all_scan[0]
 spectra=[]
-actual_scan=all_scan[0]
+scans = ms1_df['scan'].unique()
+
+
+# Prepare data loading (save memory by only
+# loading MS1 spectra into memory)
+options = PeakFileOptions()
+options.setMSLevels([1])
+fh = MzMLFile()
+fh.setOptions(options)
+
+# Load data
+input_map = MSExperiment()
+fh.load(input_filename, input_map)
+input_map.updateRanges()
+
+ff = FeatureFinder()
+ff.setLogType(LogType.CMD)
+
+# Run the feature finder
+name = "centroided"
+features = FeatureMap()
+seeds = FeatureMap()
+params = FeatureFinder().getParameters(name)
+ff.run(name, input_map, features, params, seeds)
+
+features.setUniqueIds()
+fh = FeatureXMLFile()
+fh.store("output.featureXML", features)
+print("Found", features.size(), "features")
+"""
+ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache='feather')
+featurexml_file = "C:/Users/migue/OneDrive/Escritorio/Uni/Beca/machinelearning_comparison/output.featureXML"
+
+features = FeatureMap()
+
+FeatureXMLFile().load(featurexml_file, features)
+
+matched_scans=[]
+spectra=[]
+scans = ms2_df['scan'].unique()
+
+
+"""
+
+for f in features:
+    print(ms1_df.loc[(
+                (f.getRT() - 0.1 < ms1_df['rt']) & (ms1_df['rt'] < f.getRT() + 0.1))])
+    
+
+657 RT-11.409058107843052
+690 RT-4.036850364384407
+736 RT-3.632636277338604
+"""
+
+f= features[543]
+matched_scans=(ms1_df.loc[(
+                (f.getMZ() - 0.1 < ms1_df['mz']) & (ms1_df['mz'] < f.getMZ() + 0.1)) & (
+                (f.getRT()/60 - 0.1 < ms1_df['rt']) & (ms1_df['rt'] < f.getRT()/60 + 0.1))]['scan'].unique())
+
+maxMs2i=[]
+
+for m in matched_scans:
+    maxMs2i.append(ms2_df.loc[ms2_df['ms1scan']==m]['i'].max())
+Scan_intensity_dict = {
+    'scan' : matched_scans,
+    'maxMs2i' : maxMs2i
+}
+Scan_intensity_df=pd.DataFrame(Scan_intensity_dict)
+Scan_intensity_df_sorted = Scan_intensity_df.sort_values(by='maxMs2i')
+scans = Scan_intensity_df_sorted['scan']
+
+for scan in scans:
+    spectra.append(createSpectrum(ms2_df[ms2_df['ms1scan'] == scan]['i'].to_numpy(),numpy.sort(ms2_df[ms2_df['ms1scan'] == scan]['mz'].to_numpy())))
+
+"""
+
 for i in all_i_filtered:
-    if(actual_scan==all_scan[i]):
+    if actual_scan == all_scan[i]:
         spectrum_i.append(all_i_norm[i])
         spectrum_mz.append(all_mz[i])
     else:
-        spectra.append(createSpectrum(spectrum_i, spectrum_mz,actual_scan))
-        actual_scan=all_scan[i]
+        spectra.append(createSpectrum(spectrum_i, spectrum_mz, actual_scan))
+        actual_scan = all_scan[i]
         spectrum_i.clear()
         spectrum_mz.clear()
         spectrum_i.append(all_i_norm[i])
         spectrum_mz.append(all_mz[i])
 
+spectra.append(createSpectrum(spectrum_i, spectrum_mz,actual_scan))
+
 for spectrum in spectra: print(spectrum['scan'])
+"""
+scores=cosine_greedy(0.005,spectra,spectra)
+
+scores_array = scores.scores
+plt.figure(figsize=(6, 6), dpi=150)
+plt.imshow(scores_array["score"], cmap="viridis")
+plt.colorbar(shrink=0.7)
+plt.title("Cosine Greedy spectra similarities")
+plt.xlabel("Spectrum #ID")
+plt.ylabel("Spectrum #ID")
+plt.show()
+
