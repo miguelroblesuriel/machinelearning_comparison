@@ -21,10 +21,47 @@ from pyopenms import *
 
 from massql import msql_fileloading
 
+import spectrum_utils.plot as sup
+import spectrum_utils.spectrum as sus
+
+
+def mirror_plot(spectrum1,spectrum2,i):
+    plt.figure(figsize=(8, 4))
+    # Plot Spectrum 1
+    plt.stem(spectrum1.mz, spectrum1.intensities, linefmt='b-', markerfmt='', basefmt=' ', label='Spectrum 1')
+
+    # Plot Spectrum 2 with reversed m/z values
+    plt.stem(spectrum2.mz, -spectrum2.intensities, linefmt='r-', markerfmt='', basefmt=' ',
+             label='Spectrum 2 (Mirrored)')
+    # Add labels and legend
+    plt.xlabel('m/z')
+    plt.ylabel('Intensity')
+    plt.title('Mirror Plot Along X-axis of MS2 Spectra')
+    plt.legend()
+
+    # Show the mirror plot
+    plt.savefig("mirror " + str(i)+ ".png", dpi=300, bbox_inches="tight", transparent=True)
 def cosine_greedy(tolerance, spectrums1, spectrums2):
     similarity_measure = CosineGreedy(tolerance=tolerance)
     scores = calculate_scores(spectrums1, spectrums2, similarity_measure, is_symmetric=True)
     return scores
+
+def compare_two_scans(scan1,scan2):
+    spectra = []
+    spectra.append(createSpectrum(ms2_df[ms2_df['scan'] == scan1]['i'].to_numpy(),
+                                  numpy.sort(ms2_df[ms2_df['scan'] == scan1]['mz'].to_numpy())))
+    spectra.append(createSpectrum(ms2_df[ms2_df['scan'] == scan2]['i'].to_numpy(),
+                                  numpy.sort(ms2_df[ms2_df['scan'] == scan2]['mz'].to_numpy())))
+    scores = cosine_greedy(0.005, spectra, spectra)
+
+    scores_array = scores.scores
+    plt.figure(figsize=(6, 6), dpi=150)
+    plt.imshow(scores_array["score"], cmap="viridis")
+    plt.colorbar(shrink=0.7)
+    plt.title("Cosine Greedy spectra similarities")
+    plt.xlabel("Spectrum #ID")
+    plt.ylabel("Spectrum #ID")
+    plt.show()
 def _determine_scan_polarity_pyteomics_mzML(spec):
     """
     Gets an enum for positive and negative polarity, for pyteomics
@@ -228,63 +265,50 @@ scans = ms2_df['scan'].unique()
 
 
 """
-
 for f in features:
     print(ms1_df.loc[(
                 (f.getRT() - 0.1 < ms1_df['rt']) & (ms1_df['rt'] < f.getRT() + 0.1))])
-    
-
-657 RT-11.409058107843052
-690 RT-4.036850364384407
-736 RT-3.632636277338604
 """
 
-f= features[543]
-matched_scans=(ms1_df.loc[(
-                (f.getMZ() - 0.1 < ms1_df['mz']) & (ms1_df['mz'] < f.getMZ() + 0.1)) & (
-                (f.getRT()/60 - 0.1 < ms1_df['rt']) & (ms1_df['rt'] < f.getRT()/60 + 0.1))]['scan'].unique())
-
+i=0
+duplas = []
 maxMs2i=[]
+for f in features:
+    matched_scans=(ms2_df.loc[(
+                    (f.getMZ() - 0.1 < ms2_df['precmz']) & (ms2_df['precmz'] < f.getMZ() + 0.1)) & (
+                    (f.getRT()/60 - 0.1 < ms2_df['rt']) & (ms2_df['rt'] < f.getRT()/60 + 0.1))]['scan'].unique())
 
-for m in matched_scans:
-    maxMs2i.append(ms2_df.loc[ms2_df['ms1scan']==m]['i'].max())
-Scan_intensity_dict = {
-    'scan' : matched_scans,
-    'maxMs2i' : maxMs2i
-}
-Scan_intensity_df=pd.DataFrame(Scan_intensity_dict)
-Scan_intensity_df_sorted = Scan_intensity_df.sort_values(by='maxMs2i')
-scans = Scan_intensity_df_sorted['scan']
+    for m in matched_scans:
+        maxMs2i.append(ms2_df.loc[ms2_df['scan']==m]['i'].max())
+    Scan_intensity_dict = {
+        'scan' : matched_scans,
+        'maxMs2i' : maxMs2i
+    }
+    Scan_intensity_df=pd.DataFrame(Scan_intensity_dict)
+    Scan_intensity_df_sorted = Scan_intensity_df.sort_values(by='maxMs2i')
+    scans = Scan_intensity_df_sorted['scan']
+    if len(scans) > 1:
+        duplas.append(scans[-2:])
+    """
+    for scan in scans:
+        spectra.append(createSpectrum(ms2_df[ms2_df['scan'] == scan]['i_norm'].to_numpy(),numpy.sort(ms2_df[ms2_df['scan'] == scan]['mz'].to_numpy())))
+        
+    mirror_plot(spectra[-1],spectra[-2],i)
 
-for scan in scans:
-    spectra.append(createSpectrum(ms2_df[ms2_df['ms1scan'] == scan]['i'].to_numpy(),numpy.sort(ms2_df[ms2_df['ms1scan'] == scan]['mz'].to_numpy())))
+    scores=cosine_greedy(0.005,spectra[-2:],spectra[-2:])
 
-"""
+    scores_array = scores.scores
+    plt.figure(figsize=(6, 6), dpi=150)
+    plt.imshow(scores_array["score"], cmap="viridis")
+    plt.colorbar(shrink=0.7)
+    plt.title("Cosine Greedy spectra similarities" + str(i))
+    plt.xlabel("Spectrum #ID")
+    plt.ylabel("Spectrum #ID")
+    plt.show()
+    """
 
-for i in all_i_filtered:
-    if actual_scan == all_scan[i]:
-        spectrum_i.append(all_i_norm[i])
-        spectrum_mz.append(all_mz[i])
-    else:
-        spectra.append(createSpectrum(spectrum_i, spectrum_mz, actual_scan))
-        actual_scan = all_scan[i]
-        spectrum_i.clear()
-        spectrum_mz.clear()
-        spectrum_i.append(all_i_norm[i])
-        spectrum_mz.append(all_mz[i])
+    spectra.clear()
+    maxMs2i.clear()
+    i= i +1;
 
-spectra.append(createSpectrum(spectrum_i, spectrum_mz,actual_scan))
-
-for spectrum in spectra: print(spectrum['scan'])
-"""
-scores=cosine_greedy(0.005,spectra,spectra)
-
-scores_array = scores.scores
-plt.figure(figsize=(6, 6), dpi=150)
-plt.imshow(scores_array["score"], cmap="viridis")
-plt.colorbar(shrink=0.7)
-plt.title("Cosine Greedy spectra similarities")
-plt.xlabel("Spectrum #ID")
-plt.ylabel("Spectrum #ID")
-plt.show()
-
+print(duplas)
