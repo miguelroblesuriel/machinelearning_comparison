@@ -25,14 +25,14 @@ import spectrum_utils.plot as sup
 import spectrum_utils.spectrum as sus
 
 
-def mirror_plot(spectrum1,spectrum2,i):
+def mirror_plot(spectrum1,spectrum2,i,precmz1,precmz2,rt1,rt2):
     plt.figure(figsize=(8, 4))
     # Plot Spectrum 1
-    plt.stem(spectrum1.mz, spectrum1.intensities, linefmt='b-', markerfmt='', basefmt=' ', label='Spectrum 1')
+    plt.stem(spectrum1.mz, spectrum1.intensities, linefmt='b-', markerfmt='', basefmt=' ', label=f'Spectrum 1- precmz={precmz1} - rt={rt1}' )
 
     # Plot Spectrum 2 with reversed m/z values
     plt.stem(spectrum2.mz, -spectrum2.intensities, linefmt='r-', markerfmt='', basefmt=' ',
-             label='Spectrum 2 (Mirrored)')
+             label=f'Spectrum 2 (Mirrored) - precmz={precmz2} - rt={rt2}' )
     # Add labels and legend
     plt.xlabel('m/z')
     plt.ylabel('Intensity')
@@ -43,7 +43,7 @@ def mirror_plot(spectrum1,spectrum2,i):
     plt.savefig("mirror " + str(i)+ ".png", dpi=300, bbox_inches="tight", transparent=True)
 def cosine_greedy(tolerance, spectrums1, spectrums2):
     similarity_measure = CosineGreedy(tolerance=tolerance)
-    scores = calculate_scores(spectrums1, spectrums2, similarity_measure, is_symmetric=True)
+    scores = calculate_scores(spectrums1, spectrums2, similarity_measure, is_symmetric=False)
     return scores
 
 def compare_two_scans(scan1,scan2):
@@ -62,6 +62,27 @@ def compare_two_scans(scan1,scan2):
     plt.xlabel("Spectrum #ID")
     plt.ylabel("Spectrum #ID")
     plt.show()
+
+def find_triplet(dupla,features_scans,ms2_df):
+    threshold=0.75
+    scan_dupla = dupla.iloc[0]
+    triplet_scan = []
+    spectrum_dupla = []
+    spectrum_dupla.append(createSpectrum(ms2_df[ms2_df['scan'] == scan_dupla]['i_norm'].to_numpy(),numpy.sort(ms2_df[ms2_df['scan'] == scan_dupla]['mz'].to_numpy())))
+    spectrum_dupla.append(createSpectrum(ms2_df[ms2_df['scan'] == scan_dupla]['i_norm'].to_numpy(),numpy.sort(ms2_df[ms2_df['scan'] == scan_dupla]['mz'].to_numpy())))
+    for f in features_scans:
+        spectra=[]
+        if scan_dupla not in f:
+            for scan in f:
+                spectra.append(createSpectrum(ms2_df[ms2_df['scan'] == scan]['i_norm'].to_numpy(),numpy.sort(ms2_df[ms2_df['scan'] == scan]['mz'].to_numpy())))
+                spectra.append(createSpectrum(ms2_df[ms2_df['scan'] == scan]['i_norm'].to_numpy(),numpy.sort(ms2_df[ms2_df['scan'] == scan]['mz'].to_numpy())))
+                scores = cosine_greedy(0.005,  spectra, spectrum_dupla)
+                scores_array = scores.scores
+                if scores_array["score"][0][0]> threshold:
+                    triplet_scan.append(scan)
+                spectra.clear()
+    return triplet_scan
+
 def _determine_scan_polarity_pyteomics_mzML(spec):
     """
     Gets an enum for positive and negative polarity, for pyteomics
@@ -273,10 +294,13 @@ for f in features:
 i=0
 duplas = []
 maxMs2i=[]
+features_scans=[]
 for f in features:
     matched_scans=(ms2_df.loc[(
                     (f.getMZ() - 0.1 < ms2_df['precmz']) & (ms2_df['precmz'] < f.getMZ() + 0.1)) & (
                     (f.getRT()/60 - 0.1 < ms2_df['rt']) & (ms2_df['rt'] < f.getRT()/60 + 0.1))]['scan'].unique())
+    features_scans.append(matched_scans)
+
 
     for m in matched_scans:
         maxMs2i.append(ms2_df.loc[ms2_df['scan']==m]['i'].max())
@@ -311,4 +335,18 @@ for f in features:
     maxMs2i.clear()
     i= i +1;
 
-print(duplas)
+triplets=[]
+
+for dupla in duplas:
+    triplet = find_triplet(dupla,features_scans,ms2_df)
+    triplets_dict = {
+        'dupla': dupla,
+        'triplet': triplet
+    }
+    triplets.append(triplets_dict)
+
+file_path = 'triplets.txt'
+json_str = json.dumps(triplets, indent=2)
+
+with open(file_path, 'w') as file:
+    file.write(json_str)
