@@ -7,7 +7,7 @@ from pyopenms import *
 
 from massql import msql_fileloading
 
-from comparison.find_triplet import find_triplet
+from machinelearning_comparison.comparison.find_triplet import find_triplet
 
 def _determine_scan_polarity_pyteomics_mzML(spec):
     """
@@ -66,18 +66,16 @@ def triplet_extraction(input_filename):
         i = i + 1
 
     triplets = []
-
+    i = len(duplas)
     for dupla in duplas:
-        print("a")
-        triplet = find_triplet(dupla, features_scans, ms2_df)
+        print(i)
+        triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df)
         triplets_dict = {
             'dupla': dupla,
-            'triplet': triplet
+            'triplet': triplet,
+            'scores' : comparison_scores
         }
         triplets.append(triplets_dict)
+        i = i - 1
 
-    file_path = 'triplets.txt'
-    json_str = json.dumps(triplets, indent=2)
-
-    with open(file_path, 'w') as file:
-        file.write(json_str)
+    np.save('triplets.npy', triplets)

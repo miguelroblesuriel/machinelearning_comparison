@@ -1,6 +1,6 @@
 from matchms import Spectrum
 
-def createSpectrum(spectrum_i, spectrum_mz):
+def createSpectrum(spectrum_i, spectrum_mz, precursor_mz):
     '''
 
     :param spectrum_i:
@@ -9,6 +9,6 @@ def createSpectrum(spectrum_i, spectrum_mz):
     '''
     spectrum = Spectrum(mz=spectrum_mz,
                         intensities=spectrum_i,
-                        metadata=None,
+                        metadata={'precursor_mz': float(precursor_mz)},
                         metadata_harmonization=None)
     return spectrum
