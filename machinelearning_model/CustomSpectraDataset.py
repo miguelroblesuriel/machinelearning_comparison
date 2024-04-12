@@ -14,10 +14,9 @@ class CustomImageDataset(Dataset):
         return len(self.triplets)
 
     def __getitem__(self, idx):
-        random_index = random.randint(0, len(self.triplets) - 1)
-        dupla = self.duplas[random_index]
-        triplet = self.triplets[random_index]
-        scores = self.comparison_scores[random_index]
+        dupla = self.duplas[idx]
+        triplet = self.triplets[idx]
+        scores = self.comparison_scores[idx]
         probabilities = [ (i ** 3) for i in scores]
         total_probability = sum(probabilities)
         probabilities = [prob / total_probability for prob in probabilities]

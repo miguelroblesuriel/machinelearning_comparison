@@ -5,6 +5,7 @@ from comparison.createSpectrum import createSpectrum
 def find_triplet(dupla, features_scans, ms2_df):
 
     threshold = 0.75
+    peak_threshold = 10
     scan_dupla = dupla.iloc[0]
     triplet_scan = []
     spectrum_dupla = []
@@ -24,7 +25,8 @@ def find_triplet(dupla, features_scans, ms2_df):
                 scores = cosine_greedy(0.005, spectra, spectrum_dupla)
                 scores_array = scores.scores
                 if scores_array["score"][0][0] > threshold:
-                    triplet_scan.append(scan)
-                    comparison_scores.append(scores_array["score"][0][0])
+                    if scores_array["matches"][0][0] > peak_threshold:
+                        triplet_scan.append(scan)
+                        comparison_scores.append(scores_array["score"][0][0])
                 spectra.clear()
     return triplet_scan, comparison_scores

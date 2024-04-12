@@ -2,13 +2,13 @@ import numpy
 import os
 import gensim
 from massql import msql_fileloading
-from machinelearning_comparison.comparison.createSpectrum import createSpectrum
-from machinelearning_comparison.comparison.cosine_greedy import cosine_greedy
-from machinelearning_comparison.comparison.modified_cosine import modified_cosine
-from machinelearning_comparison.comparison.spec2vec import spec2vec
-from machinelearning_comparison.comparison.ms2deepscore import ms2deepscore
-from machinelearning_comparison.visualization.mirror_plot import mirror_plot
-from machinelearning_comparison.visualization.plot_scores import plot_scores
+from comparison.createSpectrum import createSpectrum
+from comparison.cosine_greedy import cosine_greedy
+from comparison.modified_cosine import modified_cosine
+from comparison.spec2vec import spec2vec
+from comparison.ms2deepscore import ms2deepscore
+from visualization.mirror_plot import mirror_plot
+from visualization.plot_scores import plot_scores
 from ms2deepscore.models import load_model
 from spec2vec import SpectrumDocument
 from spec2vec.model_building import train_new_word2vec_model
@@ -40,11 +40,13 @@ modelo_Spec2Vec = train_new_word2vec_model(spectrum_documents, iterations=[25], 
                                      progress_logger=True, vector_size=300)
 
 mirror_plot(spectra_dupla[0],spectra_dupla[1]) #Representa los dos espectros enfrentados
-scores = cosine_greedy(0.005, spectra_dupla, spectra_tripletas) #compara los espectros utilizando el cosineGreedy
+scores = cosine_greedy(0.005, spectra_dupla, spectra_tripletas)#compara los espectros utilizando el cosineGreedy
+scores_array = scores.scores
+print(scores.scores["matches"])
 plot_scores((scores.scores)["score"]) #Representa los valores de la comparación
 scores = modified_cosine(0.005, spectra_dupla, spectra_tripletas) #compara los espectros utilizando el modifiedCosine
 plot_scores(scores.scores["score"])
 scores = ms2deepscore(modelo_MS2DeepScore, spectra_dupla, spectra_tripletas)#compara los espectros utilizando MS2DeepScore
 plot_scores(scores.scores)
-scores = spec2vec(modelo_Spec2Vec, spetra_dupla, spectra_tripletas)#compara los espectros utilizando Spec2Vec
+scores = spec2vec(modelo_Spec2Vec, spectra_dupla, spectra_tripletas)#compara los espectros utilizando Spec2Vec
 plot_scores(scores.scores)

@@ -1,13 +1,14 @@
 import json
 
 import pandas as pd
+import os
 
 
 from pyopenms import *
 
 from massql import msql_fileloading
 
-from machinelearning_comparison.comparison.find_triplet import find_triplet
+from comparison.find_triplet import find_triplet
 
 def _determine_scan_polarity_pyteomics_mzML(spec):
     """
@@ -28,13 +29,49 @@ def _determine_scan_polarity_pyteomics_mzML(spec):
 
     return polarity
 
+def feature_finding(input_filename):
+    options = PeakFileOptions()
+    options.setMSLevels([1])
+    fh = MzMLFile()
+    fh.setOptions(options)
+
+    # Load data
+    input_map = MSExperiment()
+    fh.load(input_filename, input_map)
+    input_map.updateRanges()
+
+    ff = FeatureFinder()
+    ff.setLogType(LogType.CMD)
+
+    # Run the feature finder
+    name = "centroided"
+    features = FeatureMap()
+    seeds = FeatureMap()
+    params = FeatureFinder().getParameters(name)
+    ff.run(name, input_map, features, params, seeds)
+
+    features.setUniqueIds()
+    fh = FeatureXMLFile()
+    fh.store("output.featureXML", features)
+    return features
+
 
 def triplet_extraction(input_filename):
     ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache='feather')
-    featurexml_file = "C:/Users/migue/OneDrive/Escritorio/Uni/Beca/machinelearning_comparison/output.featureXML"
 
-    features = FeatureMap()
-    FeatureXMLFile().load(featurexml_file, features)
+    featurexml_filename = "output.featureXML"
+
+    current_directory = os.getcwd()
+
+    featurexml_file = os.path.join(current_directory, featurexml_filename)
+
+    if os.path.exists(featurexml_file):
+        features = FeatureMap()
+        FeatureXMLFile().load(featurexml_file, features)
+    else:
+        features = feature_finding(input_filename)
+
+
 
     spectra = []
     i = 0
@@ -70,6 +107,7 @@ def triplet_extraction(input_filename):
     for dupla in duplas:
         print(i)
         triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df)
+        print(triplet)
         triplets_dict = {
             'dupla': dupla,
             'triplet': triplet,
@@ -78,4 +116,4 @@ def triplet_extraction(input_filename):
         triplets.append(triplets_dict)
         i = i - 1
 
-    np.save('triplets.npy', triplets)
+    return triplets
