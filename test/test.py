@@ -15,8 +15,9 @@ from spec2vec.model_building import train_new_word2vec_model
 
 input_filename = "049_Blk_Water_NEG.mzMl"
 ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache='feather') #importar el archivo con la información del experimento
-file_path = 'triplets.npy'
+file_path = '049_Blk_Water_NEG_triplets.npy'
 loaded_data = numpy.load(file_path, allow_pickle=True)#importar los sets de dupla/tripletas
+print(loaded_data)
 modelo_MS2DeepScore = load_model("MS2DeepScore_allGNPSpositive_10k_500_500_200.hdf5")
 
 

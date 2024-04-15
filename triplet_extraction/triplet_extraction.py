@@ -52,7 +52,9 @@ def feature_finding(input_filename):
 
     features.setUniqueIds()
     fh = FeatureXMLFile()
-    fh.store("output.featureXML", features)
+
+    output_filename = input_filename.replace(".mzMl", "_output.featureXML")
+    fh.store(output_filename, features)
     return features
 
 
