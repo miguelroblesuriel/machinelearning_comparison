@@ -4,7 +4,7 @@ import numpy
 import pandas as pd
 from torch.utils.data import Dataset
 
-class CustomImageDataset(Dataset):
+class CustomSpectraDataset(Dataset):
     def __init__(self, dupla, triplets, comparison_scores):
         self.duplas = dupla
         self.triplets = triplets

@@ -1,1 +1,1 @@
-__all__=["triplet_extraction.py"]
+__all__=["triplet_extraction"]
