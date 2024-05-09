@@ -11,10 +11,11 @@ for item in loaded_data:
         duplas.append(item["dupla"].tolist())
         triplets.append(item["triplet"])
         scores.append(item["scores"])
+        print(len(item["triplet"]))
 
 dataset = CustomSpectraDataset(duplas, triplets, scores)
 
-anchor, dupla, triplet = dataset[300]
+anchor, dupla, triplet = dataset[343]
 print(anchor)
 print(dupla)
 print(triplet)

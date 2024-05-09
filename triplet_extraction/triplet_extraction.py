@@ -61,7 +61,7 @@ def feature_finding(input_filename):
 def triplet_extraction(input_filename):
     ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache='feather')
 
-    featurexml_filename = "output.featureXML"
+    featurexml_filename = input_filename.replace(".mzMl", "_output.featureXML")
 
     current_directory = os.getcwd()
 
@@ -80,14 +80,16 @@ def triplet_extraction(input_filename):
     duplas = []
     maxMs2i = []
     features_scans = []
-
     for f in features:
+        print(ms2_df.loc[(
+                                            (f.getMZ() - 0.1 < ms2_df['precmz']) & (ms2_df['precmz'] < f.getMZ() + 0.1)) & (
+                                            (f.getRT() / 60 - 0.1 < ms2_df['rt']) & (ms2_df['rt'] < f.getRT() / 60 + 0.1))][
+                             'scan'].unique())
         matched_scans = (ms2_df.loc[(
                                             (f.getMZ() - 0.1 < ms2_df['precmz']) & (ms2_df['precmz'] < f.getMZ() + 0.1)) & (
                                             (f.getRT() / 60 - 0.1 < ms2_df['rt']) & (ms2_df['rt'] < f.getRT() / 60 + 0.1))][
                              'scan'].unique())
         features_scans.append(matched_scans)
-
         for m in matched_scans:
             maxMs2i.append(ms2_df.loc[ms2_df['scan'] == m]['i'].max())
         Scan_intensity_dict = {

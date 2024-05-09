@@ -10,9 +10,9 @@ def find_triplet(dupla, features_scans, ms2_df):
     triplet_scan = []
     spectrum_dupla = []
     spectrum_dupla.append(createSpectrum(ms2_df[ms2_df['scan'] == scan_dupla]['i_norm'].to_numpy(),
-                                         numpy.sort(ms2_df[ms2_df['scan'] == scan_dupla]['mz'].to_numpy()), ms2_df[ms2_df['scan'] == scan_dupla]['precmz'].unique()))
+                                         (numpy.sort(ms2_df[ms2_df['scan'] == scan_dupla]['mz'].to_numpy())), ms2_df[ms2_df['scan'] == scan_dupla]['precmz'].unique()))
     spectrum_dupla.append(createSpectrum(ms2_df[ms2_df['scan'] == scan_dupla]['i_norm'].to_numpy(),
-                                         numpy.sort(ms2_df[ms2_df['scan'] == scan_dupla]['mz'].to_numpy()), ms2_df[ms2_df['scan'] == scan_dupla]['precmz'].unique()))
+                                         (numpy.sort(ms2_df[ms2_df['scan'] == scan_dupla]['mz'].to_numpy())), ms2_df[ms2_df['scan'] == scan_dupla]['precmz'].unique()))
     comparison_scores=[]
     for f in features_scans:
         spectra = []
