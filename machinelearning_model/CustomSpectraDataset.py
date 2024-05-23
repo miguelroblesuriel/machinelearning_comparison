@@ -13,27 +13,27 @@ def collate_fn(batch, max_len=174):
     anchors = []
     positives = []
     negatives = []
-    anchor_masks = []
-    positive_masks = []
-    negative_masks = []
+    anchor_padding_masks = []
+    positive_padding_masks = []
+    negative_padding_masks = []
     for triplet in batch:
-        anchor_spectrum, anchor_mask = collate_spectrum(triplet[0], max_len)
-        positive_spectrum, positive_mask = collate_spectrum(triplet[1], max_len)
-        negative_spectrum, negative_mask = collate_spectrum(triplet[2], max_len)
+        anchor_spectrum, anchor_padding_mask = collate_spectrum(triplet[0], max_len)
+        positive_spectrum, positive_padding_mask = collate_spectrum(triplet[1], max_len)
+        negative_spectrum, negative_padding_mask = collate_spectrum(triplet[2], max_len)
         anchors.append(anchor_spectrum)
         positives.append(positive_spectrum)
         negatives.append(negative_spectrum)
-        anchor_masks.append(anchor_mask)
-        positive_masks.append(positive_mask)
-        negative_masks.append(negative_mask)
+        anchor_padding_masks.append(anchor_padding_mask)
+        positive_padding_masks.append(positive_padding_mask)
+        negative_padding_masks.append(negative_padding_mask)
 
     return (
         torch.stack(anchors),
         torch.stack(positives),
         torch.stack(negatives),
-        torch.stack(anchor_masks),
-        torch.stack(positive_masks),
-        torch.stack(negative_masks)
+        torch.stack(anchor_padding_masks),
+        torch.stack(positive_padding_masks),
+        torch.stack(negative_padding_masks)
     )
 
 def collate_spectrum(spectrum, max_len, cls_token=(0.0, 0.0)):
@@ -42,12 +42,14 @@ def collate_spectrum(spectrum, max_len, cls_token=(0.0, 0.0)):
     length = len(spectrum_with_cls)
     # Pad the spectrum
     padded_spectrum = np.pad(spectrum_with_cls, ((0, max_len - length), (0, 0)), mode='constant', constant_values=0)
-    attention_mask = [1] * length + [0] * (max_len - length)
+    # In torch transformer, (https://pytorch.org/docs/stable/generated/torch.nn.Transformer.html)
+    # if a boolean tensor is provided for any of the [src/tgt/memory]_mask arguments, positions with a True value are not allowed to participate in the attention
+    padding_mask = [False] * length + [True] * (max_len - length)
 
     padded_spectra = torch.tensor(padded_spectrum, dtype=torch.float32)
-    attention_masks = torch.tensor(attention_mask, dtype=torch.int8)
+    padding_masks = torch.tensor(padding_mask, dtype=torch.int8)
     
-    return padded_spectra, attention_masks
+    return padded_spectra, padding_masks
 
 class CustomSpectraDataset(Dataset):
     def __init__(self, dupla, triplets, comparison_scores, ms2_df):

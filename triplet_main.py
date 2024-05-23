@@ -1,46 +1,55 @@
+from re import S
 from massql import msql_fileloading
 import numpy as np
+import pytorch_lightning as pl
 from torch.utils.data import Dataset, DataLoader
+from data.MaskedMS2 import MS2Dataset, collate_fn_pretraining
+from data.utils import load_spectra
 from machinelearning_model.CustomSpectraDataset import CustomSpectraDataset, collate_fn
+import pickle
+from sklearn.preprocessing import StandardScaler
 
-from models.FourierFeatures import FourierFeatures
+from models.Bertabolomics import BertabolomicsLightning, Bertabolomics, MLP
+
+
+import hashlib
+
+
+def hash_array(x):
+    hasher = hashlib.sha256()
+    hasher.update(x.tobytes())
+    return hasher.digest()
 
 
 if __name__ == "__main__":
-    input_filename = "/data/tino/triplet_loss/049_Blk_Water_NEG.mzMl"
-    ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache='feather') 
+    print("Loading...")
+    spectra_filename = "spectra.pkl"
+    try:
+        with open(spectra_filename, "rb") as f:
+            spectra = pickle.load(f)
+    except FileNotFoundError:
+        spectra = []
+        input_filename = "/data/tino/triplet_loss/049_Blk_Water_NEG.mzMl"
+        ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache="feather")
 
-    file_path = '/data/tino/triplet_loss/049_Blk_Water_NEG_triplets.npy'
-    loaded_data = np.load(file_path, allow_pickle=True)
-    duplas = []
-    triplets = []
-    scores = []
-    for item in loaded_data:
-        if item["triplet"] != []:
-            duplas.append(item["dupla"].tolist())
-            triplets.append(item["triplet"])
-            scores.append(item["scores"])
+        for idx in ms2_df["scan"].unique():
+            spectra.append(load_spectra(ms2_df, idx))
 
-    dataset = CustomSpectraDataset(duplas, triplets, scores, ms2_df)
-    dataloader = DataLoader(dataset, batch_size=2, collate_fn=collate_fn)
-    
-    a, p, n, am, pm, nm = next(iter(dataloader))
-    print(a.shape)
-    fourier = FourierFeatures(2, 3)
-    print(fourier(a).shape)
+        with open(spectra_filename, "wb") as f:
+            pickle.dump(spectra, f)
 
-    # max_peaks = 0
-    # all_peaks = []
-    # for a, b, c in dataset:
-    #     all_peaks.append((a.shape[0], b.shape[0], c.shape[0]))
-    # print(a.shape)
-    # print(b.shape)
-    # print(c.shape)
-    # # save all peaks in csv using numpy
-    # import numpy as np
-    # np.savetxt("all_peaks.csv", np.stack(all_peaks), delimiter=",")
-    #
-    # print(f"Max peaks: {max(all_peaks)}")
-    # # 173, 96, 140
-    # 
- 
+    normalizer = StandardScaler() 
+    dataset = MS2Dataset(spectra, normalizer)
+
+    dataloader_pretraining = DataLoader(
+        dataset, batch_size=8, collate_fn=collate_fn_pretraining
+    )
+    print("Loading done!")
+
+    base_model = Bertabolomics()
+    proj_head = MLP()
+    model = BertabolomicsLightning(base_model, proj_head, mode="pretrain")
+
+    trainer_pretrain = pl.Trainer(max_epochs=2, accelerator="cpu")
+    print("Training...")
+    trainer_pretrain.fit(model, dataloader_pretraining)
