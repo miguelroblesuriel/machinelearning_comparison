@@ -7,10 +7,10 @@ from machinelearning_model.CustomSpectraDataset import (collate_fn,
 from models.Bertabolomics import MLP, Bertabolomics, BertabolomicsLightning
 
 if __name__ == "__main__":
-    mzml_filename = "/data/tino/triplet_loss/049_Blk_Water_NEG.mzMl"
-    npy_triplet_filename = '/data/tino/triplet_loss/049_Blk_Water_NEG_triplets.npy'
+    mzml_filename = "datafiles/049_Blk_Water_NEG.mzMl"
+    npy_triplet_filename = 'datafiles/049_Blk_Water_NEG_triplets.npy'
     # TODO: automatically get last checkpoint
-    checkpoint_path = "lightning_logs/version_5/checkpoints/epoch=1-step=44.ckpt"
+    checkpoint_path = "lightning_logs/bertabolomics.ckpt"
 
     # TODO: Reproduce changes in main.py and avoid code dup
     dataset = load_triplets_dataset(mzml_filename, npy_triplet_filename)

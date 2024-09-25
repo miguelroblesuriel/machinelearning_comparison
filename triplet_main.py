@@ -21,8 +21,8 @@ def hash_array(x):
 
 
 if __name__ == "__main__":
-    mzml_filename = "/data/tino/triplet_loss/049_Blk_Water_NEG.mzMl"
-    npy_triplet_filename = '/data/tino/triplet_loss/049_Blk_Water_NEG_triplets.npy'
+    mzml_filename = "datafiles/049_Blk_Water_NEG.mzMl"
+    npy_triplet_filename = 'datafiles/049_Blk_Water_NEG_triplets.npy'
     # TODO: scaler
     dataset = load_triplets_dataset(mzml_filename, npy_triplet_filename)
     dataloader = DataLoader(dataset, batch_size=16, collate_fn=collate_fn)
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     proj_head = MLP() # unused for triplet training
     model = BertabolomicsLightning(base_model, proj_head, mode="triplet")
 
-    trainer_pretrain = pl.Trainer(max_epochs=10, accelerator="cuda")
+    trainer_pretrain = pl.Trainer(max_epochs=2, accelerator="cuda")
     print("Training...")
     trainer_pretrain.fit(model, dataloader)
 
