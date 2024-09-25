@@ -1,18 +1,17 @@
+import hashlib
+import pickle
 from re import S
-from massql import msql_fileloading
+
 import numpy as np
 import pytorch_lightning as pl
-from torch.utils.data import Dataset, DataLoader
-from data.MaskedMS2 import MS2Dataset, collate_fn_pretraining
-from data.utils import load_spectra
-from machinelearning_model.CustomSpectraDataset import CustomSpectraDataset, collate_fn
-import pickle
+from massql import msql_fileloading
 from sklearn.preprocessing import StandardScaler
+from torch.utils.data import DataLoader, Dataset
 
-from models.Bertabolomics import BertabolomicsLightning, Bertabolomics, MLP
-
-
-import hashlib
+from machinelearning_model.CustomSpectraDataset import (CustomSpectraDataset,
+                                                        collate_fn,
+                                                        load_triplets_dataset)
+from models.Bertabolomics import MLP, Bertabolomics, BertabolomicsLightning
 
 
 def hash_array(x):
@@ -22,34 +21,21 @@ def hash_array(x):
 
 
 if __name__ == "__main__":
-    print("Loading...")
-    spectra_filename = "spectra.pkl"
-    try:
-        with open(spectra_filename, "rb") as f:
-            spectra = pickle.load(f)
-    except FileNotFoundError:
-        spectra = []
-        input_filename = "/data/tino/triplet_loss/049_Blk_Water_NEG.mzMl"
-        ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache="feather")
-
-        for idx in ms2_df["scan"].unique():
-            spectra.append(load_spectra(ms2_df, idx))
-
-        with open(spectra_filename, "wb") as f:
-            pickle.dump(spectra, f)
-
-    normalizer = StandardScaler() 
-    dataset = MS2Dataset(spectra, normalizer)
-
-    dataloader_pretraining = DataLoader(
-        dataset, batch_size=8, collate_fn=collate_fn_pretraining
-    )
+    mzml_filename = "/data/tino/triplet_loss/049_Blk_Water_NEG.mzMl"
+    npy_triplet_filename = '/data/tino/triplet_loss/049_Blk_Water_NEG_triplets.npy'
+    # TODO: scaler
+    dataset = load_triplets_dataset(mzml_filename, npy_triplet_filename)
+    dataloader = DataLoader(dataset, batch_size=16, collate_fn=collate_fn)
+    # dataloader_pretraining = DataLoader(
+    #     dataset, batch_size=8, collate_fn=collate_fn_pretraining
+    # )
     print("Loading done!")
 
     base_model = Bertabolomics()
-    proj_head = MLP()
-    model = BertabolomicsLightning(base_model, proj_head, mode="pretrain")
+    proj_head = MLP() # unused for triplet training
+    model = BertabolomicsLightning(base_model, proj_head, mode="triplet")
 
-    trainer_pretrain = pl.Trainer(max_epochs=2, accelerator="cpu")
+    trainer_pretrain = pl.Trainer(max_epochs=10, accelerator="cuda")
     print("Training...")
-    trainer_pretrain.fit(model, dataloader_pretraining)
+    trainer_pretrain.fit(model, dataloader)
+

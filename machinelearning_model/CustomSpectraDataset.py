@@ -1,11 +1,12 @@
 # Example usage with DataLoader
-from torch.utils.data import DataLoader, Dataset
 import numpy as np
 import torch
 from massql import msql_fileloading
-from torch.utils.data import Dataset
-from preprocessing.peak_processing import peak_processing
+from torch.utils.data import DataLoader, Dataset
+
 from comparison.createSpectrum import createSpectrum
+from preprocessing.peak_processing import peak_processing
+
 
 def collate_fn(batch, max_len=174):
     # batch is a list of tuples of 3 elements. Each element is a spectrum which should be collated 
@@ -23,9 +24,9 @@ def collate_fn(batch, max_len=174):
         anchors.append(anchor_spectrum)
         positives.append(positive_spectrum)
         negatives.append(negative_spectrum)
-        anchor_padding_masks.append(anchor_padding_mask)
-        positive_padding_masks.append(positive_padding_mask)
-        negative_padding_masks.append(negative_padding_mask)
+        anchor_padding_masks.append(anchor_padding_mask.bool())
+        positive_padding_masks.append(positive_padding_mask.bool())
+        negative_padding_masks.append(negative_padding_mask.bool())
 
     return (
         torch.stack(anchors),
@@ -39,9 +40,10 @@ def collate_fn(batch, max_len=174):
 def collate_spectrum(spectrum, max_len, cls_token=(0.0, 0.0)):
     """max_len is the maximum length of the spectrum after padding and the inclusion of the cls_token"""
     spectrum_with_cls = np.vstack([np.array(cls_token), spectrum])
-    length = len(spectrum_with_cls)
+    # Make sure that the spectrum is not longer than max_len with :max_len
+    length = len(spectrum_with_cls[:max_len])
     # Pad the spectrum
-    padded_spectrum = np.pad(spectrum_with_cls, ((0, max_len - length), (0, 0)), mode='constant', constant_values=0)
+    padded_spectrum = np.pad(spectrum_with_cls[:max_len], ((0, max_len - length), (0, 0)), mode='constant', constant_values=0)
     # In torch transformer, (https://pytorch.org/docs/stable/generated/torch.nn.Transformer.html)
     # if a boolean tensor is provided for any of the [src/tgt/memory]_mask arguments, positions with a True value are not allowed to participate in the attention
     padding_mask = [False] * length + [True] * (max_len - length)
@@ -80,12 +82,14 @@ class CustomSpectraDataset(Dataset):
         )
 
 
-if __name__ == "__main__":
-    input_filename = "/data/tino/triplet_loss/049_Blk_Water_NEG.mzMl"
-    ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache='feather') 
 
-    file_path = '/data/tino/triplet_loss/049_Blk_Water_NEG_triplets.npy'
-    loaded_data = np.load(file_path, allow_pickle=True)
+"""Function that takes both mzML and npy files and returns the spectra dataset"""
+def load_triplets_dataset(mzml_file, npy_triple_file):
+    # Load the data from the mzML file
+    ms1_df, ms2_df = msql_fileloading.load_data(mzml_file, cache='feather')
+    # Load the triplets from the npy file
+    import ipdb; breakpoint() #--------------> let's inspect ms2_df to create standardizer
+    loaded_data = np.load(npy_triple_file, allow_pickle=True)
     duplas = []
     triplets = []
     scores = []
@@ -94,10 +98,15 @@ if __name__ == "__main__":
             duplas.append(item["dupla"].tolist())
             triplets.append(item["triplet"])
             scores.append(item["scores"])
-
     dataset = CustomSpectraDataset(duplas, triplets, scores, ms2_df)
+    return dataset
+
+
+if __name__ == "__main__":
+    mzml_filename = "/data/tino/triplet_loss/049_Blk_Water_NEG.mzMl"
+    npy_triplet_filename = '/data/tino/triplet_loss/049_Blk_Water_NEG_triplets.npy'
+    dataset = load_triplets_dataset(mzml_filename, npy_triplet_filename)
     dataloader = DataLoader(dataset, batch_size=2, collate_fn=collate_fn)
-    
     print(next(iter(dataloader)))
 
     # max_peaks = 0

@@ -1,9 +1,10 @@
-import torch
-import torch.nn as nn
 import numpy as np
 import pytorch_lightning as pl
+import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
+
 
 def index_with_mask(output, mask):
     return output[mask.unsqueeze(-1).expand_as(output)]
@@ -65,43 +66,37 @@ class BertabolomicsLightning(pl.LightningModule):
         return self.model(x, mask, padding_mask)
 
     def training_step(self, batch, batch_idx):
-        (spectra, masked_spectra, 
-            net_output_masks, spectra_masks, padding_masks) = batch
-        output = self(masked_spectra, padding_mask=padding_masks)
         # Compute the loss based on the mode
         if self.mode == 'pretrain':
-            # FIXME: m/z are not masked and this evaluates how good the m/z proj was. This should be fixed in the 
-            # data loaders?
-            proj_output = self.proj_model(output[net_output_masks])
-            loss = F.mse_loss(proj_output, spectra[spectra_masks].unsqueeze(-1))
+            raise NotImplementedError("Pretrain mode is not implemented yet.")
+            # Following lines are from previous version and should be reviewed 
+            # to recall the expected flow
+            # (spectra, masked_spectra, 
+            #     net_output_masks, spectra_masks, padding_masks) = batch
+            # output = self(masked_spectra, padding_mask=padding_masks)
+            #
+            # # FIXME: m/z are not masked and this evaluates how good the m/z proj was. This should be fixed in the 
+            # # data loaders?
+            # proj_output = self.proj_model(output[net_output_masks])
+            # loss = F.mse_loss(proj_output, spectra[spectra_masks].unsqueeze(-1))
         elif self.mode == 'triplet':
+            # TODO: execute line by line
             # Compute triplet loss
-            loss = compute_triplet_loss(output, spectra)
+            (anchors, positives, negatives, anchor_padding_masks, positive_padding_masks, negative_padding_masks) = batch
+            anchors_output = self(anchors, padding_mask=anchor_padding_masks)
+            positives_output = self(positives, padding_mask=positive_padding_masks) 
+            negatives_output = self(negatives, padding_mask=negative_padding_masks)
+            # Each of the outputs has shape (batch_size, seq_len, d_model), but
+            # we need to pick the CLS token for spectra comparison, which is on the
+            # first position of seq_len
+            anchors_output = anchors_output[:, 0, :]
+            positives_output = positives_output[:, 0, :]
+            negatives_output = negatives_output[:, 0, :]
+            loss = F.triplet_margin_loss(anchors_output, positives_output, negatives_output) 
         else:
             raise ValueError("Unsupported mode. Please choose either 'pretrain' or 'triplet'.")
-        
-        # Log the training loss
         self.log('train_loss', loss)
         return loss
-
-    def validation_step(self, batch, batch_idx):
-        (spectra, masked_spectra, 
-            net_output_masks, spectra_masks, padding_masks) = batch
-        output = self(masked_spectra, padding_mask=padding_masks)
-        
-        # Compute the loss based on the mode
-        if self.mode == 'pretrain':
-            proj_output = self.proj_model(output[net_output_masks])
-            val_loss = F.mse_loss(proj_output, spectra[spectra_masks].unsqueeze(-1))
-        elif self.mode == 'triplet':
-            # Compute triplet loss
-            val_loss = compute_triplet_loss(output, spectra)
-        else:
-            raise ValueError("Unsupported mode. Please choose either 'pretrain' or 'triplet'.")
-        
-        # Log the validation loss
-        self.log('val_loss', val_loss)
-        return val_loss
 
     def configure_optimizers(self):
         optimizer = Adam(self.parameters(), lr=self.learning_rate)
