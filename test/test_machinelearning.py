@@ -1,8 +1,10 @@
 import numpy
 from machinelearning_model.CustomSpectraDataset import CustomSpectraDataset
 
-file_path = '049_Blk_Water_NEG_triplets.npy'
-loaded_data = numpy.load(file_path, allow_pickle=True)#importar los sets de dupla/tripletas
+file_path = '/data/tino/triplet_loss/049_Blk_Water_NEG_triplets.npy'
+loaded_data = numpy.load(file_path, allow_pickle=True) #importar los sets de dupla/tripletas
+# file_path = 'test/triplets.npy'
+
 duplas = []
 triplets = []
 scores = []
