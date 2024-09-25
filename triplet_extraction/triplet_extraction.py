@@ -112,12 +112,13 @@ def triplet_extraction(input_filename):
         print(i)
         triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df)
         print(triplet)
-        triplets_dict = {
-            'dupla': dupla,
-            'triplet': triplet,
-            'scores' : comparison_scores
-        }
-        triplets.append(triplets_dict)
+        if(triplet!=[]):
+            triplets_dict = {
+                'dupla': dupla,
+                'triplet': triplet,
+                'scores' : comparison_scores
+            }
+            triplets.append(triplets_dict)
         i = i - 1
 
     return triplets
