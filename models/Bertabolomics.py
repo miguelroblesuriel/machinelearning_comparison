@@ -41,18 +41,16 @@ class Bertabolomics(nn.Module):
         self.fourier_features = FourierFeatures(input_dim, num_features)
         self.input_projection = nn.Linear(2 * num_features, d_model)  # Project Fourier features to d_model
         encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads, 
-                                                   dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True)
+                                                   dim_feedforward=dim_feedforward, 
+                                                   dropout=dropout, batch_first=True)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
     def forward(self, x, mask=None, padding_mask=None):
         x = self.fourier_features(x)
+        print(x[:5, ...])
         x = self.input_projection(x)
         x = self.transformer_encoder(x, mask=mask, src_key_padding_mask=padding_mask)
         return x
-
-def compute_triplet_loss(output, spectra):
-    raise NotImplementedError("This function is not implemented yet.")
-
 
 class BertabolomicsLightning(pl.LightningModule):
     def __init__(self, model, proj_model, learning_rate=1e-4, mode='pretrain'):
@@ -61,6 +59,12 @@ class BertabolomicsLightning(pl.LightningModule):
         self.proj_model = proj_model
         self.learning_rate = learning_rate
         self.mode = mode
+        # Careful, if using cosine we should select the margin carefully
+        # self.triplet_loss = (
+        #     nn.TripletMarginWithDistanceLoss(
+        #         distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y))
+        # )
+        self.triplet_loss = nn.TripletMarginLoss(margin=1.0, p=2)
 
     def forward(self, x, mask=None, padding_mask=None):
         return self.model(x, mask, padding_mask)
@@ -92,10 +96,30 @@ class BertabolomicsLightning(pl.LightningModule):
             anchors_output = anchors_output[:, 0, :]
             positives_output = positives_output[:, 0, :]
             negatives_output = negatives_output[:, 0, :]
-            loss = F.triplet_margin_loss(anchors_output, positives_output, negatives_output) 
+            loss = self.triplet_loss(anchors_output, positives_output, negatives_output) 
         else:
             raise ValueError("Unsupported mode. Please choose either 'pretrain' or 'triplet'.")
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, on_step=False, on_epoch=True)
+        self.logger.experiment.add_scalars('loss', {'train': loss}, self.global_step) 
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        if self.mode == 'pretrain':
+            raise NotImplementedError("Pretrain mode is not implemented yet.")
+        elif self.mode == 'triplet':
+            (anchors, positives, negatives, anchor_padding_masks, positive_padding_masks, negative_padding_masks) = batch
+            anchors_output = self(anchors, padding_mask=anchor_padding_masks)
+            positives_output = self(positives, padding_mask=positive_padding_masks) 
+            negatives_output = self(negatives, padding_mask=negative_padding_masks)
+            # Pick the CLS token for spectra comparison
+            anchors_output = anchors_output[:, 0, :]
+            positives_output = positives_output[:, 0, :]
+            negatives_output = negatives_output[:, 0, :]
+            loss = self.triplet_loss(anchors_output, positives_output, negatives_output) 
+        else:
+            raise ValueError("Unsupported mode. Please choose either 'pretrain' or 'triplet'.")
+        self.log('val_loss', loss, on_step=False, on_epoch=True)
+        self.logger.experiment.add_scalars('loss', {'val': loss}, self.global_step) 
         return loss
 
     def configure_optimizers(self):

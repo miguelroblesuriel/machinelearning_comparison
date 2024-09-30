@@ -8,9 +8,8 @@ from massql import msql_fileloading
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, Dataset
 
-from machinelearning_model.CustomSpectraDataset import (CustomSpectraDataset,
-                                                        collate_fn,
-                                                        load_triplets_dataset)
+from data.CustomSpectraDataset import (CustomSpectraDataset, collate_fn,
+                                       list_datasets, load_triplets_dataset)
 from models.Bertabolomics import MLP, Bertabolomics, BertabolomicsLightning
 
 
@@ -21,11 +20,11 @@ def hash_array(x):
 
 
 if __name__ == "__main__":
-    mzml_filename = "datafiles/049_Blk_Water_NEG.mzMl"
-    npy_triplet_filename = 'datafiles/049_Blk_Water_NEG_triplets.npy'
+    datasets = list_datasets("datafiles")
     # TODO: scaler
-    dataset = load_triplets_dataset(mzml_filename, npy_triplet_filename)
-    dataloader = DataLoader(dataset, batch_size=16, collate_fn=collate_fn)
+    train_dataset, val_dataset = load_triplets_dataset(datasets)
+    train_dl = DataLoader(train_dataset, batch_size=16, collate_fn=collate_fn)
+    val_dl = DataLoader(val_dataset, batch_size=16, collate_fn=collate_fn, shuffle=False)
     # dataloader_pretraining = DataLoader(
     #     dataset, batch_size=8, collate_fn=collate_fn_pretraining
     # )
@@ -35,7 +34,7 @@ if __name__ == "__main__":
     proj_head = MLP() # unused for triplet training
     model = BertabolomicsLightning(base_model, proj_head, mode="triplet")
 
-    trainer_pretrain = pl.Trainer(max_epochs=2, accelerator="cuda")
+    trainer_pretrain = pl.Trainer(max_epochs=50, accelerator="cuda")
     print("Training...")
-    trainer_pretrain.fit(model, dataloader)
+    trainer_pretrain.fit(model, train_dl, val_dl)
 

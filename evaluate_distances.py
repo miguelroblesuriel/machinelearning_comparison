@@ -2,19 +2,17 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from machinelearning_model.CustomSpectraDataset import (collate_fn,
-                                                        load_triplets_dataset)
+from data.CustomSpectraDataset import collate_fn, load_triplets_dataset
 from models.Bertabolomics import MLP, Bertabolomics, BertabolomicsLightning
 
 if __name__ == "__main__":
-    mzml_filename = "datafiles/049_Blk_Water_NEG.mzMl"
-    npy_triplet_filename = 'datafiles/049_Blk_Water_NEG_triplets.npy'
+    dataset_filename = "datafiles/049_Blk_Water_NEG"
     # TODO: automatically get last checkpoint
     checkpoint_path = "lightning_logs/bertabolomics.ckpt"
 
     # TODO: Reproduce changes in main.py and avoid code dup
-    dataset = load_triplets_dataset(mzml_filename, npy_triplet_filename)
-    dataloader = DataLoader(dataset, batch_size=16, collate_fn=collate_fn)
+    train_dataset, test_dataset = load_triplets_dataset(dataset_filename)
+    dataloader = DataLoader(train_dataset, batch_size=16, collate_fn=collate_fn)
     # dataloader_pretraining = DataLoader(
     #     dataset, batch_size=8, collate_fn=collate_fn_pretraining
     # )
