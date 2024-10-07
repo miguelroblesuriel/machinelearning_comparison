@@ -2,26 +2,17 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-import matplotlib.pyplot as plt
-
-from machinelearning_model.CustomSpectraDataset import (collate_fn,
-                                                        load_triplets_dataset)
+from data.CustomSpectraDataset import collate_fn, load_triplets_dataset
 from models.Bertabolomics import MLP, Bertabolomics, BertabolomicsLightning
 
-from preprocessing.convert_to_spectra import convert_to_spectra
-
-from comparison.cosine_greedy import cosine_greedy
-
-
 if __name__ == "__main__":
-    mzml_filename = "datafiles/049_Blk_Water_NEG.mzMl"
-    npy_triplet_filename = 'datafiles/049_Blk_Water_NEG_triplets.npy'
+    dataset_filename = "datafiles/049_Blk_Water_NEG"
     # TODO: automatically get last checkpoint
     checkpoint_path = "lightning_logs/bertabolomics.ckpt"
 
     # TODO: Reproduce changes in main.py and avoid code dup
-    dataset = load_triplets_dataset(mzml_filename, npy_triplet_filename)
-    dataloader = DataLoader(dataset, batch_size=16, collate_fn=collate_fn)
+    train_dataset, test_dataset = load_triplets_dataset(dataset_filename)
+    dataloader = DataLoader(train_dataset, batch_size=16, collate_fn=collate_fn)
     # dataloader_pretraining = DataLoader(
     #     dataset, batch_size=8, collate_fn=collate_fn_pretraining
     # )
@@ -49,25 +40,8 @@ if __name__ == "__main__":
 
     # Get some spectra for an example of computing distances
     (anchors, positives, negatives, anchor_padding_masks, positive_padding_masks, negative_padding_masks) = next(iter(dataloader))
-
-    anchors_spectra = convert_to_spectra(anchors,anchor_padding_masks)
-    positives_spectra = convert_to_spectra(positives, positive_padding_masks)
-    negatives_spectra = convert_to_spectra(negatives, negative_padding_masks)
-
-    scores=[]
-    for anchor,positive in zip(anchors_spectra,positives_spectra):
-        spectra = []
-        spectra.append(anchor)
-        spectra.append(positive)
-        scores.append(cosine_greedy(0.005,spectra,spectra))
-    final_scores=[]
-    for score in scores:
-        print(score.scores[0][1]["score"])
-        final_scores.append(score.scores[0][1]["score"])
+    
     distances = compute_distance(anchors, anchor_padding_masks, positives, positive_padding_masks)
     print(distances)
-    plt.plot(distances.tolist(),final_scores)
-
-
 
 
