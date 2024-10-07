@@ -7,7 +7,7 @@ def to_float(array):
         array_float.append(float(element))
     return np.array(array_float)
 
-def createSpectrum(spectrum_i, spectrum_mz, precursor_mz):
+def createSpectrum(spectrum_i, spectrum_mz, precursor_mz=0):
     '''
 
     :param spectrum_i:

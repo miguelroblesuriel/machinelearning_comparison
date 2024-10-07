@@ -1,1 +1,1 @@
-__all__=["peak_processing"]
+__all__=["peak_processing","convert_to_spectra"]
