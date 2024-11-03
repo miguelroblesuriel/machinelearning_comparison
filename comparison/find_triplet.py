@@ -2,10 +2,8 @@ import numpy
 from comparison.cosine_greedy import cosine_greedy
 from comparison.createSpectrum import createSpectrum
 
-def find_triplet(dupla, features_scans, ms2_df):
+def find_triplet(dupla, features_scans, ms2_df, threshold=0.75, peak_threshold=10):
 
-    threshold = 0.75
-    peak_threshold = 10
     scan_dupla = dupla.iloc[0]
     triplet_scan = []
     spectrum_dupla = []

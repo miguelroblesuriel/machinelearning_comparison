@@ -58,7 +58,7 @@ def feature_finding(input_filename):
     return features
 
 
-def triplet_extraction(input_filename):
+def triplet_extraction(input_filename,threshold,peak_threshold):
     ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache='feather')
 
     featurexml_filename = input_filename.replace(".mzMl", "_output.featureXML")
@@ -110,7 +110,7 @@ def triplet_extraction(input_filename):
     i = len(duplas)
     for dupla in duplas:
         print(i)
-        triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df)
+        triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df,threshold,peak_threshold)
         print(triplet)
         if(triplet!=[]):
             triplets_dict = {
