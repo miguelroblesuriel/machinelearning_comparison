@@ -53,7 +53,7 @@ def feature_finding(input_filename):
     features.setUniqueIds()
     fh = FeatureXMLFile()
 
-    output_filename = input_filename.replace(".mzMl", "_output.featureXML")
+    output_filename = input_filename.replace(".mzML", "_output.featureXML")
     fh.store(output_filename, features)
     return features
 
@@ -61,7 +61,7 @@ def feature_finding(input_filename):
 def triplet_extraction(input_filename,threshold,peak_threshold):
     ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache='feather')
 
-    featurexml_filename = input_filename.replace(".mzMl", "_output.featureXML")
+    featurexml_filename = input_filename.replace(".mzML", "_output.featureXML")
 
     current_directory = os.getcwd()
 
