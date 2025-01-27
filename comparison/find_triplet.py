@@ -2,10 +2,8 @@ import numpy
 from comparison.cosine_greedy import cosine_greedy
 from comparison.createSpectrum import createSpectrum
 
-def find_triplet(dupla, features_scans, ms2_df):
+def find_triplet(dupla, features_scans, ms2_df, threshold=0.75, peak_threshold=10):
 
-    threshold = 0.75
-    peak_threshold = 10
     scan_dupla = dupla.iloc[0]
     triplet_scan = []
     spectrum_dupla = []
@@ -22,11 +20,16 @@ def find_triplet(dupla, features_scans, ms2_df):
                                               numpy.sort(ms2_df[ms2_df['scan'] == scan]['mz'].to_numpy()),ms2_df[ms2_df['scan'] == scan]['precmz'].unique()))
                 spectra.append(createSpectrum(ms2_df[ms2_df['scan'] == scan]['i_norm'].to_numpy(),
                                               numpy.sort(ms2_df[ms2_df['scan'] == scan]['mz'].to_numpy()), ms2_df[ms2_df['scan'] == scan]['precmz'].unique()))
-                scores = cosine_greedy(0.005, spectra, spectrum_dupla)
-                scores_array = scores.scores
-                if scores_array["score"][0][0] > threshold:
-                    if scores_array["matches"][0][0] > peak_threshold:
-                        triplet_scan.append(scan)
-                        comparison_scores.append(scores_array["score"][0][0])
+                try:
+                    scores = cosine_greedy(0.005, spectra, spectrum_dupla)
+                    scores_array = scores.scores
+                    if scores_array["scores"][0][0] > threshold:
+                        if scores_array["matches"][0][0] > peak_threshold:
+                            triplet_scan.append(scan)
+                            comparison_scores.append(scores_array["scores"][0][0])
+                except Exception as e:
+                    pass
+                    print("Recovering from error")
+                    print(e)
                 spectra.clear()
     return triplet_scan, comparison_scores

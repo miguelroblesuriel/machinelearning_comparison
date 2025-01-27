@@ -5,10 +5,10 @@ import os
 
 
 from pyopenms import *
-
 from massql import msql_fileloading
 
 from comparison.find_triplet import find_triplet
+
 
 def _determine_scan_polarity_pyteomics_mzML(spec):
     """
@@ -29,49 +29,82 @@ def _determine_scan_polarity_pyteomics_mzML(spec):
 
     return polarity
 
-def feature_finding(input_filename):
-    options = PeakFileOptions()
-    options.setMSLevels([1])
-    fh = MzMLFile()
-    fh.setOptions(options)
 
-    # Load data
-    input_map = MSExperiment()
-    fh.load(input_filename, input_map)
-    input_map.updateRanges()
+def feature_finding(input_filename,input_filepath):
+    exp = MSExperiment()
+    MzMLFile().load(input_filepath, exp)
 
-    ff = FeatureFinder()
-    ff.setLogType(LogType.CMD)
+    exp.sortSpectra(True)
 
-    # Run the feature finder
-    name = "centroided"
-    features = FeatureMap()
-    seeds = FeatureMap()
-    params = FeatureFinder().getParameters(name)
-    ff.run(name, input_map, features, params, seeds)
+    mass_traces = []
+    mtd = MassTraceDetection()
+    mtd_params = mtd.getDefaults()
+    mtd_params.setValue(
+        "mass_error_ppm", 5.0
+    )  # set according to your instrument mass error
+    mtd_params.setValue(
+        "noise_threshold_int", 3000.0
+    )  # adjust to noise level in your data
+    mtd.setParameters(mtd_params)
+    mtd.run(exp, mass_traces, 0)
 
-    features.setUniqueIds()
-    fh = FeatureXMLFile()
+    mass_traces_split = []
+    mass_traces_final = []
+    epd = ElutionPeakDetection()
+    epd_params = epd.getDefaults()
+    epd_params.setValue("width_filtering", "fixed")
+    epd.setParameters(epd_params)
+    epd.detectPeaks(mass_traces, mass_traces_split)
 
-    output_filename = input_filename.replace(".mzMl", "_output.featureXML")
-    fh.store(output_filename, features)
-    return features
+    if epd.getParameters().getValue("width_filtering") == "auto":
+        epd.filterByPeakWidth(mass_traces_split, mass_traces_final)
+    else:
+        mass_traces_final = mass_traces_split
+
+    fm = FeatureMap()
+    feat_chrom = []
+    ffm = FeatureFindingMetabo()
+    ffm_params = ffm.getDefaults()
+    ffm_params.setValue("isotope_filtering_model", "none")
+    ffm_params.setValue(
+        "remove_single_traces", "true"
+    )  # set false to keep features with only one mass trace
+    ffm_params.setValue("mz_scoring_by_elements", "false")
+    ffm_params.setValue("report_convex_hulls", "true")
+    ffm.setParameters(ffm_params)
+    ffm.run(mass_traces_final, fm, feat_chrom)
+
+    fm.setUniqueIds()
+
+    # Store the result in a FeatureXML file
+    output_filename = input_filename.replace(".mzML", "_picked_output.featureXML")
+    output_path = os.path.join("/home/miguel/beca/machinelearning_comparison/triplet_data", output_filename)
+
+    # Ensure the directory exists before saving
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    # Save the features to an XML file
+    feature_xml_file = FeatureXMLFile()
+    feature_xml_file.store(output_path, fm)
+
+    return fm
 
 
-def triplet_extraction(input_filename):
-    ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache='feather')
 
-    featurexml_filename = input_filename.replace(".mzMl", "_output.featureXML")
+def triplet_extraction(input_filename,input_filepath,threshold,peak_threshold):
+    ms1_df, ms2_df = msql_fileloading.load_data(input_filepath, cache='feather')
+
+    featurexml_filename = input_filename.replace(".mzML", "_output.featureXML")
 
     current_directory = os.getcwd()
 
-    featurexml_file = os.path.join(current_directory, featurexml_filename)
+    featurexml_file = os.path.join(current_directory,"triplet_data" ,featurexml_filename)
 
     if os.path.exists(featurexml_file):
         features = FeatureMap()
         FeatureXMLFile().load(featurexml_file, features)
     else:
-        features = feature_finding(input_filename)
+        features = feature_finding(input_filename,input_filepath)
 
 
 
@@ -110,7 +143,7 @@ def triplet_extraction(input_filename):
     i = len(duplas)
     for dupla in duplas:
         print(i)
-        triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df)
+        triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df,threshold,peak_threshold)
         print(triplet)
         if(triplet!=[]):
             triplets_dict = {
