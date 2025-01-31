@@ -1,7 +1,6 @@
 import json
-
-import pandas as pd
 import os
+import pandas as pd
 
 
 from pyopenms import *
@@ -29,7 +28,8 @@ def _determine_scan_polarity_pyteomics_mzML(spec):
 
     return polarity
 
-def feature_finding(input_filename):
+
+def feature_finding(input_filename,input_filepath):
     options = PeakFileOptions()
     options.setMSLevels([1])
     fh = MzMLFile()
@@ -37,7 +37,7 @@ def feature_finding(input_filename):
 
     # Load data
     input_map = MSExperiment()
-    fh.load(input_filename, input_map)
+    fh.load(input_filepath, input_map)
     input_map.updateRanges()
 
     ff = FeatureFinder()
@@ -52,27 +52,26 @@ def feature_finding(input_filename):
 
     features.setUniqueIds()
     fh = FeatureXMLFile()
-
-    output_filename = input_filename.replace(".mzMl", "_output.featureXML")
-    fh.store(output_filename, features)
+    output_filename = input_filename.replace(".mzML", "_output.featureXML")
+    output_path = os.path.join("C:/Users/usuario/Desktop/Uni/import/machinelearning_comparison/triplet_data/", output_filename)
+    fh.store(output_path, features)
     return features
 
 
-def triplet_extraction(input_filename):
-    ms1_df, ms2_df = msql_fileloading.load_data(input_filename, cache='feather')
+def triplet_extraction(input_filename,input_filepath,threshold,peak_threshold):
+    ms1_df, ms2_df = msql_fileloading.load_data(input_filepath, cache='feather')
 
-    featurexml_filename = input_filename.replace(".mzMl", "_output.featureXML")
+    featurexml_filename = input_filename.replace(".mzML", "_output.featureXML")
 
     current_directory = os.getcwd()
 
-    featurexml_file = os.path.join(current_directory, featurexml_filename)
+    featurexml_file = os.path.join(current_directory, "triplet_data", featurexml_filename)
 
     if os.path.exists(featurexml_file):
         features = FeatureMap()
         FeatureXMLFile().load(featurexml_file, features)
     else:
-        features = feature_finding(input_filename)
-
+        features = feature_finding(input_filename, input_filepath)
 
 
     spectra = []
@@ -80,16 +79,14 @@ def triplet_extraction(input_filename):
     duplas = []
     maxMs2i = []
     features_scans = []
+
     for f in features:
-        print(ms2_df.loc[(
-                                            (f.getMZ() - 0.1 < ms2_df['precmz']) & (ms2_df['precmz'] < f.getMZ() + 0.1)) & (
-                                            (f.getRT() / 60 - 0.1 < ms2_df['rt']) & (ms2_df['rt'] < f.getRT() / 60 + 0.1))][
-                             'scan'].unique())
         matched_scans = (ms2_df.loc[(
                                             (f.getMZ() - 0.1 < ms2_df['precmz']) & (ms2_df['precmz'] < f.getMZ() + 0.1)) & (
                                             (f.getRT() / 60 - 0.1 < ms2_df['rt']) & (ms2_df['rt'] < f.getRT() / 60 + 0.1))][
                              'scan'].unique())
         features_scans.append(matched_scans)
+
         for m in matched_scans:
             maxMs2i.append(ms2_df.loc[ms2_df['scan'] == m]['i'].max())
         Scan_intensity_dict = {
@@ -110,15 +107,14 @@ def triplet_extraction(input_filename):
     i = len(duplas)
     for dupla in duplas:
         print(i)
-        triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df)
+        triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df,threshold,peak_threshold)
         print(triplet)
-        if(triplet!=[]):
-            triplets_dict = {
-                'dupla': dupla,
-                'triplet': triplet,
-                'scores' : comparison_scores
-            }
-            triplets.append(triplets_dict)
+        triplets_dict = {
+            'dupla': dupla,
+            'triplet': triplet,
+            'scores' : comparison_scores
+        }
+        triplets.append(triplets_dict)
         i = i - 1
 
-    return triplets
+    np.save('triplets.npy', triplets)
