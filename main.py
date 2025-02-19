@@ -11,7 +11,7 @@ for input_filename in input_filenames:
         if input_filename not in names and input_filename not in [name+"_ms1.msql.feather" for name in names] and input_filename not in [name+"_ms2.msql.feather" for name in names]:
             with open('C:/Users/usuario/Desktop/Uni/import/machinelearning_comparison/triplet_data/read_files.txt', 'a') as file:
                 file.write(input_filename + "\n")
-            triplets = triplet_extraction(input_filename, input_filepath, threshold=0.7, peak_threshold=5)
+            triplets = triplet_extraction(input_filename, input_filepath, threshold=0.7, peak_threshold=5, find_triplet_bool=True,check_quality=True)
             print("Done triplet extraction")
             output_filename = input_filename.replace(".mzML", "_triplets.npy")
             output_path = os.path.join("C:/Users/usuario/Desktop/Uni/import/machinelearning_comparison/triplet_data/", output_filename)

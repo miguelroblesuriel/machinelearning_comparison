@@ -9,6 +9,9 @@ from massql import msql_fileloading
 
 from comparison.find_triplet import find_triplet
 
+from preprocessing.check_file_quality import check_file_quality
+from preprocessing.determine_time_unit import determine_time_unit
+
 def _determine_scan_polarity_pyteomics_mzML(spec):
     """
     Gets an enum for positive and negative polarity, for pyteomics
@@ -58,7 +61,15 @@ def feature_finding(input_filename,input_filepath):
     return features
 
 
-def triplet_extraction(input_filename,input_filepath,threshold,peak_threshold):
+def adjust_time_unit(time_unit,rt):
+    if(time_unit=="second"):
+        return rt/60
+    else:
+        return rt
+
+def triplet_extraction(input_filename,input_filepath,threshold,peak_threshold,find_triplet_bool=True,check_quality=True):
+    time_unit=determine_time_unit(input_filepath)
+    print(time_unit)
     ms1_df, ms2_df = msql_fileloading.load_data(input_filepath, cache='feather')
 
     featurexml_filename = input_filename.replace(".mzML", "_output.featureXML")
@@ -83,7 +94,7 @@ def triplet_extraction(input_filename,input_filepath,threshold,peak_threshold):
     for f in features:
         matched_scans = (ms2_df.loc[(
                                             (f.getMZ() - 0.1 < ms2_df['precmz']) & (ms2_df['precmz'] < f.getMZ() + 0.1)) & (
-                                            (f.getRT() / 60 - 0.1 < ms2_df['rt']) & (ms2_df['rt'] < f.getRT() / 60 + 0.1))][
+                                            (f.getRT() / 60 - 0.1 < adjust_time_unit(time_unit,ms2_df['rt'])) & (adjust_time_unit(time_unit,ms2_df['rt']) < f.getRT() / 60 + 0.1))][
                              'scan'].unique())
         features_scans.append(matched_scans)
 
@@ -102,19 +113,21 @@ def triplet_extraction(input_filename,input_filepath,threshold,peak_threshold):
         spectra.clear()
         maxMs2i.clear()
         i = i + 1
-
-    triplets = []
-    i = len(duplas)
-    for dupla in duplas:
-        print(i)
-        triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df,threshold,peak_threshold)
-        print(triplet)
-        triplets_dict = {
-            'dupla': dupla,
-            'triplet': triplet,
-            'scores' : comparison_scores
-        }
-        triplets.append(triplets_dict)
-        i = i - 1
-
-    np.save('triplets.npy', triplets)
+    if check_quality:
+        if len(duplas) > 0:
+            check_file_quality(duplas[:][0],ms2_df)
+    if find_triplet_bool:
+        triplets = []
+        i = len(duplas)
+        for dupla in duplas:
+            print(i)
+            triplet, comparison_scores = find_triplet(dupla, features_scans, ms2_df,threshold,peak_threshold)
+            print(triplet)
+            triplets_dict = {
+                'dupla': dupla,
+                'triplet': triplet,
+                'scores' : comparison_scores
+            }
+            triplets.append(triplets_dict)
+            i = i - 1
+        return triplets
