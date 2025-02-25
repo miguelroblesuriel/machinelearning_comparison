@@ -90,8 +90,9 @@ def triplet_extraction(input_filename,input_filepath,threshold,peak_threshold,fi
     duplas = []
     maxMs2i = []
     features_scans = []
-
+    print(input_filepath)
     for f in features:
+        print(f.getRT(),f.getMZ())
         matched_scans = (ms2_df.loc[(
                                             (f.getMZ() - 0.1 < ms2_df['precmz']) & (ms2_df['precmz'] < f.getMZ() + 0.1)) & (
                                             (f.getRT() / 60 - 0.1 < adjust_time_unit(time_unit,ms2_df['rt'])) & (adjust_time_unit(time_unit,ms2_df['rt']) < f.getRT() / 60 + 0.1))][

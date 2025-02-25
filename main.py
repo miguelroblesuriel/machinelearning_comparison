@@ -2,9 +2,9 @@ import numpy as np
 from triplet_extraction.triplet_extraction import triplet_extraction
 import os
 
-input_filenames = os.listdir("C:/Users/usuario/Desktop/Uni/import/downloadpublicdata/data/filedownloads/filedownloads_flat")
+input_filenames = os.listdir("C:/Users/usuario/Desktop/Uni/import/downloadpublicdata/data/filedownloads/filedownloads_flat_wrong")
 for input_filename in input_filenames:
-    input_filepath = os.path.join("C:/Users/usuario/Desktop/Uni/import/downloadpublicdata/data/filedownloads/filedownloads_flat",input_filename)
+    input_filepath = os.path.join("C:/Users/usuario/Desktop/Uni/import/downloadpublicdata/data/filedownloads/filedownloads_flat_wrong",input_filename)
     with open('C:/Users/usuario/Desktop/Uni/import/machinelearning_comparison/triplet_data/read_files.txt', 'r') as file:
         names = file.readlines()
         names = [name.strip() for name in names]
