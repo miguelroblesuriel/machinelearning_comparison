@@ -7,7 +7,7 @@ def to_float(array):
         array_float.append(float(element))
     return np.array(array_float)
 
-def createSpectrum(spectrum_i, spectrum_mz, precursor_mz):
+def createSpectrum(spectrum_i, spectrum_mz, precursor_mz, spectrum_index):
     '''
 
     :param spectrum_i:
@@ -19,4 +19,5 @@ def createSpectrum(spectrum_i, spectrum_mz, precursor_mz):
                         intensities=to_float(spectrum_i),
                         metadata={'precursor_mz': float(precursor_mz)},
                         metadata_harmonization=None)
+    spectrum.set("scan_id", spectrum_index)
     return spectrum
