@@ -1,0 +1,17 @@
+# Ruta donde están los archivos de entrada (.mzML)
+input_dir_route: "/mnt/d/filedownloads_flat"
+
+# Ruta donde se guardarán los resultados y el archivo read_files.txt
+output_dir_route: "/mnt/d/triplet_data2"
+
+# Umbral para comparación (float)
+comparison_threshold: 0.7
+
+# Umbral de intensidad de picos (float o int según tu función)
+peak_threshold: 5
+
+# Activar o desactivar búsqueda de tripletes (true/false)
+find_triplet: true
+
+# Activar o desactivar verificación de calidad (true/false)
+check_quality: false

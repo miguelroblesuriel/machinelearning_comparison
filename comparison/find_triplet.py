@@ -21,7 +21,7 @@ def find_triplet(dupla, features_scans, features_scans_precmz, ms2_df,threshold,
     for f, precmz in zip(features_scans, features_scans_precmz):
         spectra = []
         filtered_spectra = []
-        if scan_dupla not in f or precmz !=ms2_df[ms2_df['scan'] == scan_dupla]['precmz'].unique():
+        if scan_dupla not in f or not ((precmz - 1.5 < ms2_df[ms2_df['scan'] == scan_dupla]['precmz'].unique()) & (ms2_df[ms2_df['scan'] == scan_dupla]['precmz'].unique() < precmz + 1.5)):
             for scan in f:
                 spectra.append(createSpectrum(ms2_df[ms2_df['scan'] == scan]['i_norm'].to_numpy(),
                                               numpy.sort(ms2_df[ms2_df['scan'] == scan]['mz'].to_numpy()),ms2_df[ms2_df['scan'] == scan]['precmz'].unique(), scan))

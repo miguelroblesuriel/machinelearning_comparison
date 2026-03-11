@@ -22,6 +22,6 @@ for input_filename in input_filenames:
                 output_filename = input_filename.replace(".mzML", "_triplets.npy")
                 output_path = os.path.join(yaml_data['output_dir_route'], output_filename)
                 np.save(output_path, triplets)
-    except  MemoryError:
-        print("Error de memoria")
+    except  (MemoryError, KeyError) as e:
+        print(f"Error occurred: {e}")
 
